@@ -1,4 +1,5 @@
 import pexpect
+from sympy import false
 from tensorflow.keras.utils import Progbar
 '''
 The codes used to test the CPU,the test starts a proocess with the code and expects the
@@ -93,7 +94,71 @@ class ArmCodes:
         #STRT R6, [R2]
         "STRT": 0xE4A26000
     }
-    def runDecodeTests(dict, name):
+    BranchLinkCodes = {
+        #STMDA r2, {r4-r6}
+        "STMDA": 0xE8020070,
+        #LDMDA r10, {r4-r6}
+        "LDMDA": 0xE81A0070,
+        #STM r1, {r3-r7}
+        "STM": 0xE88100F8,
+        #LDMIA r3, {r4-r5}
+        "LDMIA": 0xE8930030,
+        #POP {r0,r10,pc}
+        "POP": 0xE8BD8401,
+        #STMDB r3, {r4-r5}
+        "STMDB": 0xE9030030,
+        #PUSH {r4-r5}
+        "PUSH": 0xE92D0030,
+        #LDMDB r3, {r4-r5}
+        "LDMDB": 0xE9130030,
+        #STMIB r3, {r4-r5}
+        "STMIB": 0xE9830030,
+        #STM r3, {r4-r5}
+        "STM": 0xE8830030,
+        #LDM r3, {r4-r5}
+        "LDM": 0xE8930030,
+        #B 33554428
+        "B": 0xEA7FFFFD,
+        #BL 33554428
+        "BL": 0xEB7FFFFD
+    }
+    ThumbCodes = {
+        #MOV R1, R3
+        "MOV": 0x4619,
+        #TST R1, R3
+        "TST": 0x4219,
+        #ADD R1, R4
+        "ADD": 0x4421, 
+        #CMP R10, R4
+        "CMP": 0x45A2,
+        #BX R4
+        "BX": 0x4720,
+        #SWI 12
+        "SWI": 0xDF0C,
+        #BLX R4
+        "BLX": 0x47A0,
+        #POP {R4}
+        "POP": 0xBC10,
+        #LDR R4, [R6]
+        "LDR": 0x6834,
+        #LDRB R4, [R6]
+        "LDRB": 0x7834,
+        #LDRH R4, [R6]
+        "LDRH": 0x8834,
+        #STR R4, [R6]
+        "STR": 0x6034,
+        #STRB R4, [R6]
+        "STRB": 0x7034,
+        #STRH R4, [R6]
+        "STRH": 0x8034,
+        #PUSH {R4}
+        "PUSH": 0xB410,
+        #LDMIA   r3!, {r0,r4}
+        "LDMIA": 0xCB11,
+        #STMIA   r3!, {r0,r4}
+        "STMIA": 0xC311
+    }
+    def runDecodeTests(dict, name, thumb = False):
         print(f"Beginning {name} Codes Tests")
         total = len(dict)
         passed = 0
@@ -101,7 +166,9 @@ class ArmCodes:
             print(key)
             print(dict[key])
             try:
-                p = pexpect.spawn("./CPUtest " + str(dict[key]))
+                spawnStr = "./CPUtest " + ("-t " if thumb else "") + str(dict[key])
+                print(spawnStr)
+                p = pexpect.spawn(spawnStr)
                 p.expect(key, timeout=1)
                 p.close()
                 print("Passed!")
@@ -114,5 +181,7 @@ class ArmCodes:
 
 
 if __name__ == "__main__":
+    ArmCodes.runDecodeTests(ArmCodes.ThumbCodes, "Thumb Codes", thumb=True)
     ArmCodes.runDecodeTests(ArmCodes.DataProcessingCodes, "Data Processing")
     ArmCodes.runDecodeTests(ArmCodes.LoadStoreCodes, "Load Store")
+    ArmCodes.runDecodeTests(ArmCodes.BranchLinkCodes, "Branch Link Transfer")

@@ -5,9 +5,13 @@
 void placeholder(uint32_t instruction){
     return;
 }
+void placeholder(uint16_t instruction){
+    return;
+}
 
 //Used to return functions
 typedef void (* Func)(uint32_t param);
+typedef void (* ThumbFunc)(uint16_t param);
 
 class Instruction {
     public:
@@ -36,6 +40,7 @@ class InstructionProcessingFunctions {
 class InstructionTests {
     public:
         static void testDecode(char* strInstruction);
+        static void testThumbDecode(char* strInstruction);
         static void runTests(int argc, char** argv);
 };
 /*
@@ -139,18 +144,99 @@ class LoadStoreWordUnsignedInstrct : public Instruction {
         uint8_t getB();
         uint8_t getOp1() override;
         Func decode() override;  
+        ~LoadStoreWordUnsignedInstrct() override {};
 };
+/*
+* BEGIN BRANCH LINK TRANSFER INSTRUCTION
+*   Instructions:
+*       STMDA
+*       LDMDA
+*       STM
+*       LDMIA
+*       POP
+*       STMDB
+*       PUSH
+*       LDMDB
+*       STMIB
+*       LDMIB
+*       STM(user)
+*       LDM(user)
+*       B
+*       BL
+*/
 class BranchLinkTransferInstrct : public Instruction {
     public:
         BranchLinkTransferInstrct(uint32_t instruction) : Instruction(instruction){}
+        uint8_t getOp() override;
+        uint8_t getRn();
+        uint8_t getR();
+        Func decode() override;
+        ~BranchLinkTransferInstrct() override {};
 };
+/*
+* BEGIN COPROCESSOR INSTRUCTIONS
+* NOT USED
+*   STC
+*   LDC
+*   CPD 
+*/
 class CoprocessorInstrct : public Instruction {
     public:
         CoprocessorInstrct(uint32_t instruction) : Instruction(instruction){}
+        uint8_t getOp() override;
+        uint8_t getOp1() override;
+        Func decode() override;
+        ~CoprocessorInstrct() override {};
 };
-class UnconditionalInstrct : public Instruction {
+/*
+* THUMB INSTRUCTIONS
+*   MOV
+*   MVN
+*   AND
+*   TST
+*   BIC
+*   ORR
+*   EOR
+*   LSL
+*   LSR
+*   ASR
+*   ROR
+*   ADD
+*   SUB
+*   SBC
+*   NEG
+*   CMP
+*   CMN
+*   MUL
+*   B
+*   BL
+*   B
+*   BX
+*   SWI
+*   BLX
+*   POP
+*   LDR
+*   LDRB
+*   LDRH
+*   LDSB
+*   LDRH
+*   STR
+*   STRB
+*   STRH
+*   PUSH
+*   STMIA
+*   LDMIA
+*/
+class ThumbInstruction {
     public:
-        UnconditionalInstrct(uint32_t instruction) : Instruction(instruction){}
+        ThumbInstruction(uint16_t instruction);
+        uint16_t getData();
+        uint8_t getOp();
+        uint8_t getOp1();
+        ThumbFunc decode();
+    protected:
+        uint16_t data;
+        ThumbFunc Func;
 };
 class CPU {
     public:
@@ -228,7 +314,6 @@ Instruction::Instruction(uint32_t instruction){
     std::cout << "Format: " << format << "\n";
 }
 Func Instruction::decode(){
-    Instruction::instructionFormat format = getSelfFormat();
     Instruction* subclassedInstrct = InstructionProcessingFunctions::generateSubClassedInstrct(this);
     std::cout << "Got subclassed instruction" << "\n";
     return subclassedInstrct->decode();
@@ -286,8 +371,6 @@ Instruction* InstructionProcessingFunctions::generateSubClassedInstrct(Instructi
             return new BranchLinkTransferInstrct(instruction->getData());
         case Instruction::COPROCESSOR_INSTRUCTION:
             return new CoprocessorInstrct(instruction->getData());
-        case Instruction::UNCONDITIONAL:
-            return new UnconditionalInstrct(instruction->getData());;
         default:
             std::cout << "Throwing" << "\n";
             throw;
@@ -447,7 +530,7 @@ Func DataProcessingInstrct::getMultiplyFuncPtr(){
 *       bits 24 -> 21
 */
     uint32_t data = this->getData();
-    uint8_t op1 = this -> getOp1();
+    uint8_t op1 = this->getOp1();
     uint8_t x = (data >> 5) & 1;
     switch (op1){
         case 0b0000:
@@ -653,6 +736,462 @@ Func LoadStoreWordUnsignedInstrct::decode(){
     }
 }
 /*
+* BEGIN BRANCH LINK TRANSFER INSTRUCTION METHODS
+*   Instructions:
+*       STMDA
+*       LDMDA
+*       STM
+*       LDMIA
+*       POP
+*       STMDB
+*       PUSH
+*       LDMDB
+*       STMIB
+*       LDMIB
+*       STM(user)
+*       LDM(user)
+*       B
+*       BL
+*/
+uint8_t BranchLinkTransferInstrct::getOp(){
+    return (this->data >> 20) & 0b111111;
+}
+uint8_t BranchLinkTransferInstrct::getRn(){
+    return (this->data >> 16) & 0b1111;
+}
+uint8_t BranchLinkTransferInstrct::getR(){
+    return (this->data >> 15) & 1;
+}
+Func BranchLinkTransferInstrct::decode(){
+    uint32_t op = this->getOp();
+    uint8_t rn = this->getRn();
+    uint8_t r = this->getR();
+    switch (op){
+        case 0b000000:
+        case 0b000010:
+            std::cout << "STMDA" << "\n";
+            return placeholder;
+        case 0b000001:
+        case 0b000011:
+            std::cout << "LDMDA" << "\n";
+            return placeholder;
+        case 0b001000:
+        case 0b001010:
+            std::cout << "STM" << "\n";
+            return placeholder;
+        case 0b001001:
+            std::cout << "LDMIA" << "\n";
+            return placeholder;
+        case 0b001011:
+            if (rn == 0b1101){
+                std::cout << "POP" << "\n";
+                return placeholder;
+            }
+            std::cout << "LDMIA" << "\n";
+            return placeholder;
+        case 0b010000:
+            std::cout << "STMDB" << "\n";
+            return placeholder;
+        case 0b010010:
+            if (rn == 0b1101){
+                std::cout << "PUSH" << "\n";
+                return placeholder; 
+            }
+            std::cout << "STMDB" << "\n";
+            return placeholder;
+        case 0b010001:
+        case 0b010011:
+            std::cout << "LDMDB" << "\n";
+            return placeholder;
+        case 0b011000:
+        case 0b011010:
+            std::cout << "STMIB" << "\n";
+            return placeholder;
+        case 0b011001:
+        case 0b011011:
+            std::cout << "LDMIB" << "\n";
+            return placeholder;
+        //0b0xx1x0
+        case 0b000100:
+        case 0b000110:
+        case 0b001100:
+        case 0b001110:
+        case 0b010100:
+        case 0b010110:
+        case 0b011100:
+        case 0b011110:
+            std::cout << "STM" << "\n";
+            return placeholder;
+        //0b0xx1x1
+        case 0b000101:
+        case 0b000111:
+        case 0b001101:
+        case 0b001111:
+        case 0b010101:
+        case 0b010111:
+        case 0b011101:
+        case 0b011111:
+            std::cout << "LDM(user)" << "\n";
+            return placeholder;
+        default:
+            if (((op >> 4) & 0b11) == 0b10){
+                std::cout << "B" << "\n";
+                return placeholder;
+            }
+            if (((op >> 4) & 0b11) == 0b11){
+                std::cout << "BL" << "\n";
+                return placeholder;
+            }
+            std::cout << "PLACEHOLDER" << "\n";
+            return placeholder;
+    }
+}
+/*
+* BEGIN COPROCESSOR INSTRUCTION METHODS
+* NOT USED
+*/
+uint8_t CoprocessorInstrct::getOp(){
+    return (this->data >> 20) & 1;
+}
+uint8_t CoprocessorInstrct::getOp1(){
+    return (this->data >> 25) & 0b111;
+}
+Func CoprocessorInstrct::decode(){
+    uint8_t op = getOp();
+    uint8_t op1 = getOp1();
+    if (op1 == 0b111){
+        if (op){
+            std::cout << "STC" <<  "\n";
+            return placeholder;
+        }
+        std::cout << "LDC" <<  "\n";
+        return placeholder;
+    }
+    if (op1 == 0b110){
+        std::cout << "CDP" <<  "\n";
+        return placeholder;
+    }
+    return placeholder;
+}
+/*
+* BEGIN THUMB INSTRUCTION METHODS
+*   IMPORTANT REGISTERS:
+*       NOTE: I am not going by normal op codes
+*       OP: 15 -> 11
+*       OP1: 10 -> 8
+*       //technically bit 9 also makes some determinants for load store
+*   THUMB OP CODES:
+*       000xx move shifted register
+*           00011x add/subtract
+*       001xx move/compare/add/subtract immeadiate
+*       01000
+*           01000110b CPY
+*           else ALU
+*       01001 Hi register operations branch exchange
+*
+*       0101x and bit 9 is 0 load store
+*       0101x and bit 9 is 1 load store halfword
+*       011xx load store immeadiate offset
+*       1000x load store halfword
+*       1001x load store halfword 
+*       1010x get relative address add
+*       10110
+*           10110000 add offset to stack pointer
+*           else Push
+*       1100x multiple load store
+*       1101x conditional branch
+*               11011111b software interrupt
+*               10111110b breakpoint
+*       11100 unconditional branch
+*       11110 long branch with link
+*/
+ThumbInstruction::ThumbInstruction(uint16_t instruction){
+    this->data = instruction;
+}
+uint8_t ThumbInstruction::getOp(){
+    return (this->data >> 11) & 0b11111;
+}
+uint8_t ThumbInstruction::getOp1(){
+    return (this->data >> 8) & 0b111;
+}
+ThumbFunc ThumbInstruction::decode(){
+    uint8_t op = getOp();
+    uint8_t op1 = getOp1();
+    uint8_t op2, op3;
+    //yes this table is BIG
+    switch (op){
+        //0b000xx
+        case 0b00000:
+            std::cout << "LSL" << "\n";
+            return placeholder;
+        case 0b00001:
+            std::cout << "LSR" << "\n";
+            return placeholder;
+        case 0b00010:
+            std::cout << "ASR" << "\n";
+            return placeholder;
+        case 0b00011:
+            op2 = (op1 >> 2) & 1;
+            switch (op2){
+                case 0:
+                    std::cout << "ADD" << "\n";
+                    return placeholder;
+                case 1:
+                    std::cout << "SUB" << "\n";
+                    return placeholder;
+            }
+        //0b001xx
+        case 0b00100:
+            std::cout << "MOV" << "\n";
+            return placeholder;
+        case 0b00101:
+            std::cout << "CMP" << "\n";
+            return placeholder;
+        case 0b00110:
+            std::cout << "ADD" << "\n";
+            return placeholder;
+        case 0b00111:
+            std::cout << "SUB" << "\n";
+            return placeholder;
+        //0b01000
+        case 0b01000:
+            op2 = (this->data >> 6) & 0b1111;
+            op3 = (op1 >> 2) & 1;
+            if (op3){
+                //Hi register operations
+                switch (op1){
+                    case 0b000:
+                    case 0b100:
+                        std::cout << "ADD" << "\n";
+                        return placeholder;
+                    case 0b001:
+                    case 0b101:
+                        std::cout << "CMP" << "\n";
+                        return placeholder;
+                    case 0b010:
+                    case 0b110:
+                        std::cout << "MOV" << "\n";
+                        std::cout << "NOP" << "\n";
+                        return placeholder;
+                    case 0b011:
+                    case 0b111:
+                        //VERY IMPORTANT: WHEN BIT ZERO OF THE RS VALUE THIS SWITCHES INTO ARM MODE
+                        std::cout << "BX" << "\n";
+                        std::cout << "BLX" << "\n";
+                        return placeholder;
+                }
+            }
+            switch (op2){
+                //we use hex here, only time
+                case 0x0:
+                    std::cout << "AND" << "\n";
+                    return placeholder;
+                case 0x1:
+                    std::cout << "EOR" << "\n";
+                    return placeholder;
+                case 0x2:
+                    std::cout << "LSL" << "\n";
+                    return placeholder;
+                case 0x3:
+                    std::cout << "LSR" << "\n";
+                    return placeholder;
+                case 0x4:
+                    std::cout << "ASR" << "\n";
+                    return placeholder;
+                case 0x5:
+                    std::cout << "ADC" << "\n";
+                    return placeholder;
+                case 0x6:
+                    std::cout << "SBC" << "\n";
+                    return placeholder;
+                case 0x7:
+                    std::cout << "ROR" << "\n";
+                    return placeholder;
+                case 0x8:
+                    std::cout << "TST" << "\n";
+                    return placeholder;
+                case 0x9:
+                    std::cout << "NEG" << "\n";
+                    return placeholder;
+                case 0xA:
+                    std::cout << "CMP" << "\n";
+                    return placeholder;
+                case 0xB:
+                    std::cout << "CMN" << "\n";
+                    return placeholder;
+                case 0xC:
+                    std::cout << "ORR" << "\n";
+                    return placeholder;
+                case 0xD:
+                    std::cout << "MUL" << "\n";
+                    return placeholder;
+                case 0xE:
+                    std::cout << "BIC" << "\n";
+                    return placeholder;
+                case 0xF:
+                    std::cout << "BIC" << "\n";
+                    return placeholder;
+            }
+        case 0b01001:
+            std::cout << "LDR" << "\n";
+            return placeholder;
+        case 0b01010:
+            op2 = (op1 >> 2) & 1;
+            //determines if its halfword or not
+            op3 = (op1 >> 1) & 1;
+            if (op2){
+                if (op3){
+                    std::cout << "LDSB" << "\n";
+                    return placeholder;
+                }
+                std::cout << "STRB" << "\n";
+                return placeholder;
+            }
+            if (op3){
+                std::cout << "STRH" << "\n";
+                return placeholder;
+            }
+            std::cout << "STR" << "\n";
+            return placeholder;
+        case 0b01011:
+            op2 = (op1 >> 2) & 1;
+            //determines if its halfword or not
+            op3 = (op1 >> 1) & 1;
+            if (op2){
+                if (op3){
+                    std::cout << "LDSH" << "\n";
+                    return placeholder;
+                }
+                std::cout << "LDRB" << "\n";
+                return placeholder;
+            }
+            if (op3){
+                std::cout << "LDRH" << "\n";
+                return placeholder;
+            }
+            std::cout << "LDR" << "\n";
+            return placeholder;
+        case 0b01100:
+            std::cout << "STR" << "\n";
+            return placeholder;
+        case 0b01101:
+            std::cout << "LDR" << "\n";
+            return placeholder;
+        case 0b01110:
+            std::cout << "STRB" << "\n";
+            return placeholder;
+        case 0b01111:
+            std::cout << "LDRB" << "\n";
+            return placeholder;
+        case 0b10000:
+            std::cout << "STRH" << "\n";
+            return placeholder;
+        case 0b10001:
+            std::cout << "LDRH" << "\n";
+            return placeholder;
+        case 0b10010:
+            std::cout << "STR" << "\n";
+            return placeholder;
+        case 0b10011:
+            std::cout << "LDR" << "\n";
+            return placeholder;
+        case 0b10110:
+            op2 = (op1 >> 1) & 0b11;
+            if (op2 == 0b10){
+                std::cout << "PUSH" << "\n";
+                return placeholder;
+            }
+            //Add to stack pointer
+            std::cout << "ADD" << "\n";
+            return placeholder;
+        case 0b10111:
+            //get relative address
+            op2 = (op1 >> 1) & 0b11;
+            if (op2 == 0b10){
+                std::cout << "POP" << "\n";
+                return placeholder;
+            }
+            std::cout << "ADD" << "\n";
+            return placeholder;
+        case 0b11000:
+            std::cout << "STMIA" << "\n";
+            return placeholder;
+        case 0b11001:
+            std::cout << "LDMIA" << "\n";
+            return placeholder;
+        case 0b11010:
+        case 0b11011:
+            op2 = (this->data >> 8) & 0b1111;
+            switch (op2){
+                case 0x0:
+                    std::cout << "BEQ" << "\n";
+                    return placeholder;
+                case 0x1:
+                    std::cout << "BNE" << "\n";
+                    return placeholder;
+                case 0x2:
+                    std::cout << "BCS" << "\n";
+                    std::cout << "BHS" << "\n";
+                    return placeholder;
+                case 0x3:
+                    std::cout << "BCC" << "\n";
+                    std::cout << "BLO" << "\n";
+                    return placeholder;
+                case 0x4:
+                    std::cout << "BMI" << "\n";
+                    return placeholder;
+                case 0x5:
+                    std::cout << "BPL" << "\n";
+                    return placeholder;
+                case 0x6:
+                    std::cout << "BVS" << "\n";
+                    return placeholder;
+                case 0x7:
+                    std::cout << "BVC" << "\n";
+                    return placeholder;
+                case 0x8:
+                    std::cout << "BHI" << "\n";
+                    return placeholder;
+                case 0x9:
+                    std::cout << "BLS" << "\n";
+                    return placeholder;
+                case 0xA:
+                    std::cout << "BGE" << "\n";
+                    return placeholder;
+                case 0xB:
+                    std::cout << "BLT" << "\n";
+                    return placeholder;
+                case 0xC:
+                    std::cout << "BGT" << "\n";
+                    return placeholder;
+                case 0xD:
+                    std::cout << "BLE" << "\n";
+                    return placeholder;
+                case 0xF:
+                    std::cout << "SWI" << "\n";
+                    return placeholder;
+            }
+        case 0b11100:
+            std::cout << "B" << "\n";
+            return placeholder;
+        case 0b11110:
+            //IMPORTANT this is 2 instructions, 32 bit
+            //First half
+            std::cout << "BL" << "\n";
+            std::cout << "BLX" << "\n";
+            return placeholder;
+        case 0b11111:
+            std::cout << "BL" << "\n";
+            return placeholder;
+        case 0b11101:
+            std::cout << "BLX" << "\n";
+            return placeholder;
+        default:
+            std::cout << "PLACEHOLDER" << "\n";
+            return placeholder;
+    }
+}
+/*
 * BEGIN INSTRUCTION TEST METHODS
 *   testDecode: used when a python test module spawns a process using a integer
 *   instruction. Converts the instruction to a uint32_t and passes it through the instructions
@@ -667,11 +1206,21 @@ void InstructionTests::testDecode(char* strInstruction){
     Instruction instrct = Instruction(instruction);
     instrct.decode();
 }
+void InstructionTests::testThumbDecode(char* strInstruction){
+    std::cout << "String instruction of: " << strInstruction <<"\n";
+    uint16_t instruction = (uint16_t)std::strtol(strInstruction, NULL, 10);
+    std::bitset<16> y(instruction);
+    std::cout << "Recieved instruction of: " << y <<"\n";
+    ThumbInstruction instrct = ThumbInstruction(instruction);
+    instrct.decode();
+}
 void InstructionTests::runTests(int argc, char** argv){
-    for (int i = 1; i < argc; i++){
-        std::cout << "Decoding first" << "\n";
-        testDecode(argv[i]);
+    if (strcmp( argv[1], "-t") == 0){
+        std::cout << "Decoding Thumb Instruction" <<"\n";
+        testThumbDecode(argv[2]);
+        return;
     }
+    testDecode(argv[1]);
 }
 int main(int argc, char** argv){
     std::cout << "Starting" << "\n";
